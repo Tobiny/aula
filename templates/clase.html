@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='style.css') }}">
+    <title>Lecturas de Clase</title>
+</head>
+<body>
+    <nav>
+        <ul>
+            <li><a href="#">Formulario</a></li>
+            <li><a href="consultas.html">Consultas</a></li>
+        </ul>
+    </nav>
+    <h1>Lecturas de Clase</h1>
+    <table>
+        <tr>
+            <th>ID de Clase</th>
+            <th>Hora</th>
+            <th>Emoción</th>
+            <th>Temperatura</th>
+        </tr>
+
+        {% for lectura in lecturas %}
+        <tr>
+            <td>{{ lectura[1] }}</td>
+            <td>{{ lectura[2] }}</td>
+            <td>{{ lectura[3] }}</td>
+            <td>{{ lectura[4] }}</td>
+        </tr>
+        {% endfor %}
+    </table>
+</body>
+</html>

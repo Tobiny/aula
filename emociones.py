@@ -1,22 +1,10 @@
 import cv2
 from deepface import DeepFace
-import time
-import requests
 
-# Umbral de confianza para las emociones
-emotion_confidence_threshold = 30
 
-# URL donde se enviarán las emociones
-url = 'http://localhost:5000/emotions'
-
-# Saltar n-1 fotogramas para reducir la carga de procesamiento
-frame_skip_rate = 5
-frame_count = 0
-# Capturar el fotograma de la cámara web
-cap = cv2.VideoCapture(0)
-while True:
+def emotion_detection():
+    cap = cv2.VideoCapture(0)
     ret, frame = cap.read()
-
     # Detección de rostros y análisis de emociones
     result = DeepFace.analyze(frame, actions=['emotion'], enforce_detection=False)
 
@@ -33,9 +21,4 @@ while True:
         # Determinar la emoción predominante
         max_emotion = max(emotion_counts, key=emotion_counts.get)
         print(f"Emoción predominante: {max_emotion}")
-
-        # Enviar la emoción predominante al servidor
-        r = requests.post(url, json={'emotion': max_emotion})
-
-    # Esperar 15 minutos 900 segundos es 15 minutos
-    time.sleep(3)
+        return max_emotion
