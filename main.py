@@ -1,4 +1,4 @@
-from flask import Flask, request, render_template
+from flask import Flask, request, render_template, redirect
 from datetime import datetime
 import serial, time
 import mysql.connector
@@ -64,11 +64,28 @@ def save_data(emotion, temperature):
 def home():
     if request.method == 'POST':
         if request.form.get('Iniciar'):
-            print('Inicio de clase a las ', datetime.now())
-        if request.form.get('Terminar'):
-            print('Fin de la clase a las ', datetime.now())
+            dia, mes, anio, hora = formated_date()
+            print(request.form.get('codigo'))
+            print(request.form.get('materia'))
+            print(hora)
+        return redirect('/clase')
     elif request.method == 'GET':
         return render_template('inicio.html')
+
+
+@app.route('/clase', methods=['POST', 'GET'])
+def clase():
+    return render_template('clase.html')
+
+
+def formated_date():
+    now = datetime.now()
+    dia = now.strftime("%d")
+    mes = now.strftime("%m")
+    anio = now.strftime("%Y")
+    hora = now.strftime("%H:%M")
+    return dia, mes, anio, hora
+
 
 if __name__ == '__main__':
     app.run()

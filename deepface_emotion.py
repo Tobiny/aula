@@ -12,15 +12,13 @@ url = 'http://localhost:5000/emotions'
 # Saltar n-1 fotogramas para reducir la carga de procesamiento
 frame_skip_rate = 5
 frame_count = 0
-
+# Capturar el fotograma de la cámara web
+cap = cv2.VideoCapture(0)
 while True:
-    # Capturar el fotograma de la cámara web
-    cap = cv2.VideoCapture(0)
     ret, frame = cap.read()
-    cap.release()
 
     # Detección de rostros y análisis de emociones
-    result = DeepFace.analyze(frame, actions=['emotion'], enforce_detection=False)
+    result = DeepFace.analyze(frame, actions=['emotion'], enforce_detection=Falsej)
 
     # Identificación de la emoción dominante
     emotion_counts = {}
@@ -40,4 +38,4 @@ while True:
         r = requests.post(url, json={'emotion': max_emotion})
 
     # Esperar 15 minutos 900 segundos es 15 minutos
-    time.sleep(6)
+    time.sleep(3)

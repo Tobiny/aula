@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Formulario de Clase</title>
+    <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <nav>
+        <ul>
+            <li><a href="#">Formulario</a></li>
+            <li><a href="consultas.html">Consultas</a></li>
+        </ul>
+    </nav>
+    <h1>Formulario de Clase</h1>
+
+    <form action="/" method="post">
+        <label for="codigo">Código del Maestro:</label>
+        <input type="text" id="codigo" name="codigo" required>
+
+        <label for="materia">Materia:</label>
+        <input type="text" id="materia" name="materia" required>
+
+        <div class="buttons">
+            <input type="submit" class="start-button" name="Iniciar" value="Comenzar Clase"/>
+        </div>
+    </form>
+</body>
+</html>
