@@ -1,28 +1,26 @@
-<!DOCTYPE html>
-<html>
-<head>
-    <title>Formulario de Clase</title>
-    <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='style.css') }}">
-</head>
-<body>
-    <nav>
-        <ul>
-            <li><a href="#">Formulario</a></li>
-            <li><a href="consultas.html">Consultas</a></li>
-        </ul>
-    </nav>
-    <h1>Formulario de Clase</h1>
+{% extends "base.html" %}
 
-    <form action="/" method="post">
+{% block title %}Formulario de Clase{% endblock %}
+
+{% block additional_head %}
+<link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='style.css') }}">
+{% endblock %}
+
+{% block heading %}Formulario de Clase{% endblock %}
+
+{% block content %}
+<form action="/" method="post">
+    <div class="form-group">
         <label for="codigo">Código del Maestro:</label>
-        <input type="text" id="codigo" name="codigo" required>
-
+        <input type="text" class="form-control" id="codigo" name="codigo" required>
+    </div>
+    <div class="form-group">
         <label for="materia">Materia:</label>
-        <input type="text" id="materia" name="materia" required>
+        <input type="text" class="form-control" id="materia" name="materia" required>
+    </div>
+    <div class="buttons">
+        <input type="submit" class="btn btn-success" name="Iniciar" value="Comenzar Clase"/>
+    </div>
 
-        <div class="buttons">
-            <input type="submit" class="start-button" name="Iniciar" value="Comenzar Clase"/>
-        </div>
-    </form>
-</body>
-</html>
+</form>
+{% endblock %}
