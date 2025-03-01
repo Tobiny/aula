@@ -1,0 +1,299 @@
+{% extends "base.html" %}
+
+{% block title %}Class Monitor{% endblock %}
+
+{% block additional_head %}
+<meta http-equiv="refresh" content="30">
+{% endblock %}
+
+{% block content %}
+<div class="row mt-4">
+    <div class="col-md-12">
+        <h1 class="page-header">Class Monitor</h1>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-lg-8">
+        <div class="card mb-4">
+            <div class="card-header">
+                <h4 class="mb-0"><i class="fas fa-video me-2"></i>Live Camera Feed</h4>
+            </div>
+            <div class="card-body p-0">
+                <div class="webcam-container">
+                    <img id="webcam-feed" class="webcam-feed" src="{{ url_for('static', filename='placeholder.jpg') }}" alt="Webcam feed">
+                    <div class="emotion-display">
+                        <div id="emotion-indicator" class="emotion-indicator"></div>
+                        <span id="current-emotion">Analyzing...</span>
+                    </div>
+                </div>
+                <div class="p-3 d-flex justify-content-between">
+                    <button id="capture-button" class="btn btn-primary">
+                        <i class="fas fa-camera me-2"></i>Capture Emotion
+                    </button>
+                    <button id="auto-capture-toggle" class="btn btn-outline-secondary">
+                        <i class="fas fa-clock me-2"></i><span id="auto-capture-text">Enable Auto-Capture</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-4">
+        <div class="card mb-4">
+            <div class="card-header">
+                <h4 class="mb-0"><i class="fas fa-chart-pie me-2"></i>Emotion Summary</h4>
+            </div>
+            <div class="card-body">
+                <div class="chart-container">
+                    <canvas id="emotionChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-12">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h4 class="mb-0"><i class="fas fa-list-alt me-2"></i>Emotion Readings</h4>
+                <button id="refresh-button" class="btn btn-sm btn-outline-primary">
+                    <i class="fas fa-sync-alt me-1"></i>Refresh
+                </button>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table" id="readings-table">
+                        <thead>
+                            <tr>
+                                <th>#</th>
+                                <th>Timestamp</th>
+                                <th>Emotion</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for reading in readings %}
+                            <tr class="emotion-{{ reading.emotion.lower() }}">
+                                <td>{{ reading.id }}</td>
+                                <td>{{ reading.timestamp }}</td>
+                                <td>
+                                    <span class="badge bg-{{ get_emotion_color(reading.emotion) }}">
+                                        {{ reading.emotion }}
+                                    </span>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                            {% if not readings %}
+                            <tr>
+                                <td colspan="3" class="text-center py-4">
+                                    No emotion readings yet. Click "Capture Emotion" to begin.
+                                </td>
+                            </tr>
+                            {% endif %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const captureButton = document.getElementById('capture-button');
+        const autoCaptureToggle = document.getElementById('auto-capture-toggle');
+        const autoCaptureText = document.getElementById('auto-capture-text');
+        const refreshButton = document.getElementById('refresh-button');
+        const emotionIndicator = document.getElementById('emotion-indicator');
+        const currentEmotion = document.getElementById('current-emotion');
+        
+        // Initialize state
+        let isAutoCaptureEnabled = false;
+        let autoCaptureInterval = null;
+        
+        // Camera related variables
+        const cameraIndex = "{{ camera_index }}";
+        
+        // Set up the emotion chart
+        const emotionChartCtx = document.getElementById('emotionChart').getContext('2d');
+        const emotionChart = new Chart(emotionChartCtx, {
+            type: 'pie',
+            data: {
+                labels: [],
+                datasets: [{
+                    data: [],
+                    backgroundColor: [
+                        '#f1c40f', // happy
+                        '#3498db', // sad
+                        '#e74c3c', // angry
+                        '#8e44ad', // fear
+                        '#2ecc71', // surprise
+                        '#bdc3c7', // neutral
+                        '#9b59b6'  // disgust
+                    ]
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'bottom'
+                    }
+                }
+            }
+        });
+        
+        // Function to capture emotion
+        function captureEmotion() {
+            fetch('/capture_emotion', {
+                method: 'POST'
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    updateEmotionDisplay(data.emotion);
+                    refreshReadings();
+                } else {
+                    console.error('Error capturing emotion:', data.message);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+            });
+        }
+        
+        // Function to refresh readings table
+        function refreshReadings() {
+            fetch('/get_readings/{{ request.cookies.get("class_id") }}')
+            .then(response => response.json())
+            .then(data => {
+                // Update table
+                const tableBody = document.querySelector('#readings-table tbody');
+                tableBody.innerHTML = '';
+                
+                // Update chart data
+                const emotionCounts = {};
+                
+                data.forEach((reading, index) => {
+                    // Add to table
+                    const row = document.createElement('tr');
+                    row.className = `emotion-${reading.emotion.toLowerCase()}`;
+                    
+                    row.innerHTML = `
+                        <td>${reading.id}</td>
+                        <td>${reading.timestamp}</td>
+                        <td>
+                            <span class="badge bg-${getEmotionColor(reading.emotion)}">
+                                ${reading.emotion}
+                            </span>
+                        </td>
+                    `;
+                    tableBody.appendChild(row);
+                    
+                    // Count for chart
+                    emotionCounts[reading.emotion] = (emotionCounts[reading.emotion] || 0) + 1;
+                });
+                
+                if (data.length === 0) {
+                    const emptyRow = document.createElement('tr');
+                    emptyRow.innerHTML = `
+                        <td colspan="3" class="text-center py-4">
+                            No emotion readings yet. Click "Capture Emotion" to begin.
+                        </td>
+                    `;
+                    tableBody.appendChild(emptyRow);
+                }
+                
+                // Update chart
+                updateEmotionChart(emotionCounts);
+            })
+            .catch(error => {
+                console.error('Error:', error);
+            });
+        }
+        
+        // Function to update chart
+        function updateEmotionChart(emotionCounts) {
+            const emotions = Object.keys(emotionCounts);
+            const counts = emotions.map(emotion => emotionCounts[emotion]);
+            
+            emotionChart.data.labels = emotions;
+            emotionChart.data.datasets[0].data = counts;
+            emotionChart.update();
+        }
+        
+        // Function to update emotion display
+        function updateEmotionDisplay(emotion) {
+            currentEmotion.textContent = emotion;
+            emotionIndicator.style.backgroundColor = getEmotionColorHex(emotion);
+        }
+        
+        // Function to get emotion color for badges
+        function getEmotionColor(emotion) {
+            const emotionColors = {
+                'happy': 'warning',
+                'sad': 'primary',
+                'angry': 'danger',
+                'fear': 'dark',
+                'surprise': 'success',
+                'neutral': 'secondary',
+                'disgust': 'info'
+            };
+            
+            return emotionColors[emotion.toLowerCase()] || 'secondary';
+        }
+        
+        // Function to get emotion color for chart and indicator
+        function getEmotionColorHex(emotion) {
+            const emotionColors = {
+                'happy': '#f1c40f',
+                'sad': '#3498db',
+                'angry': '#e74c3c',
+                'fear': '#8e44ad',
+                'surprise': '#2ecc71',
+                'neutral': '#bdc3c7',
+                'disgust': '#9b59b6'
+            };
+            
+            return emotionColors[emotion.toLowerCase()] || '#bdc3c7';
+        }
+        
+        // Set up button event listeners
+        captureButton.addEventListener('click', captureEmotion);
+        
+        refreshButton.addEventListener('click', refreshReadings);
+        
+        autoCaptureToggle.addEventListener('click', function() {
+            isAutoCaptureEnabled = !isAutoCaptureEnabled;
+            
+            if (isAutoCaptureEnabled) {
+                autoCaptureText.textContent = 'Disable Auto-Capture';
+                autoCaptureToggle.classList.remove('btn-outline-secondary');
+                autoCaptureToggle.classList.add('btn-secondary');
+                
+                // Set interval to capture every 30 seconds
+                autoCaptureInterval = setInterval(captureEmotion, 30000);
+                captureEmotion(); // Capture immediately when enabled
+            } else {
+                autoCaptureText.textContent = 'Enable Auto-Capture';
+                autoCaptureToggle.classList.remove('btn-secondary');
+                autoCaptureToggle.classList.add('btn-outline-secondary');
+                
+                clearInterval(autoCaptureInterval);
+            }
+        });
+        
+        // Load initial data
+        refreshReadings();
+        
+        // Set up webcam feed
+        const webcamFeed = document.getElementById('webcam-feed');
+        // This would typically be a video feed, but for simplicity we're just updating an image
+        // In a real app, you'd use WebRTC or a similar technology to access the camera stream
+    });
+</script>
+{% endblock %}
