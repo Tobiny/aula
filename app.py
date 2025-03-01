@@ -11,13 +11,20 @@ import os.path
 
 app = Flask(__name__)
 
-# Create instance directory if it doesn't exist
-os.makedirs('instance', exist_ok=True)
+# Ensure we have an absolute path for the database
+BASE_DIR = os.path.abspath(os.path.dirname(__file__))
+INSTANCE_DIR = os.path.join(BASE_DIR, 'instance')
 
-# SQLite database setup
+# Create instance directory if it doesn't exist
+os.makedirs(INSTANCE_DIR, exist_ok=True)
+
+# SQLite database setup with explicit file path
+DB_PATH = os.path.join(INSTANCE_DIR, 'smart_classroom.db')
+DATABASE_URI = f'sqlite:///{DB_PATH}'
+print(f"Using database at: {DB_PATH}")
+
 Base = declarative_base()
-db_path = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'instance', 'smart_classroom.db')
-engine = create_engine(f'sqlite:///{db_path}')
+engine = create_engine(DATABASE_URI)
 Session = sessionmaker(bind=engine)
 
 # Define database models
@@ -45,19 +52,31 @@ class Reading(Base):
     def __repr__(self):
         return f"<Reading(id={self.id}, emotion={self.emotion})>"
 
-# Create database tables
-Base.metadata.create_all(engine)
+# Try to create database tables
+try:
+    Base.metadata.create_all(engine)
+    print("Database tables created successfully")
+except Exception as e:
+    print(f"Error creating database tables: {str(e)}")
 
 # Get available cameras
 def get_available_cameras():
     available_cameras = []
-    for i in range(10):  # Check first 10 camera indexes
-        cap = cv2.VideoCapture(i)
-        if cap.isOpened():
-            ret, frame = cap.read()
-            if ret:
-                available_cameras.append(i)
-            cap.release()
+    try:
+        for i in range(10):  # Check first 10 camera indexes
+            cap = cv2.VideoCapture(i)
+            if cap.isOpened():
+                ret, frame = cap.read()
+                if ret:
+                    available_cameras.append(i)
+                cap.release()
+    except Exception as e:
+        print(f"Error detecting cameras: {str(e)}")
+    
+    # Always include at least camera 0 as fallback
+    if not available_cameras and 0 not in available_cameras:
+        available_cameras.append(0)
+    
     return available_cameras
 
 @app.route('/', methods=['GET', 'POST'])
@@ -68,23 +87,29 @@ def home():
             subject = request.form.get('subject')
             camera_index = int(request.form.get('camera_index', 0))
             
-            # Create new class in database
-            session = Session()
-            new_class = Class(
-                teacher_id=teacher_id,
-                subject=subject,
-                date=datetime.now()
-            )
-            session.add(new_class)
-            session.commit()
-            class_id = new_class.id
-            session.close()
-            
-            # Redirect to class page with cookies
-            response = redirect(url_for('class_view'))
-            response.set_cookie('class_id', str(class_id))
-            response.set_cookie('camera_index', str(camera_index))
-            return response
+            try:
+                # Create new class in database
+                session = Session()
+                new_class = Class(
+                    teacher_id=teacher_id,
+                    subject=subject,
+                    date=datetime.now()
+                )
+                session.add(new_class)
+                session.commit()
+                class_id = new_class.id
+                session.close()
+                
+                # Redirect to class page with cookies
+                response = redirect(url_for('class_view'))
+                response.set_cookie('class_id', str(class_id))
+                response.set_cookie('camera_index', str(camera_index))
+                return response
+            except Exception as e:
+                print(f"Error creating class: {str(e)}")
+                # Return to home page with error
+                cameras = get_available_cameras()
+                return render_template('index.html', cameras=cameras, error="Database error. Please try again.")
     
     # Get list of available cameras
     cameras = get_available_cameras()
@@ -111,10 +136,15 @@ def class_view():
     class_id = request.cookies.get('class_id')
     camera_index = request.cookies.get('camera_index', 0)
     
-    # Get readings for this class
-    session = Session()
-    readings = session.query(Reading).filter(Reading.class_id == class_id).all()
-    session.close()
+    readings = []
+    try:
+        # Get readings for this class
+        session = Session()
+        if class_id:
+            readings = session.query(Reading).filter(Reading.class_id == class_id).all()
+        session.close()
+    except Exception as e:
+        print(f"Error retrieving readings: {str(e)}")
     
     return render_template('class.html', readings=readings, camera_index=camera_index)
 
@@ -126,37 +156,46 @@ def capture_emotion():
     # Capture and analyze emotion
     emotion = emotions.detect_emotion(camera_index)
     
-    if emotion:
-        # Store in database
-        session = Session()
-        new_reading = Reading(
-            class_id=class_id,
-            timestamp=datetime.now(),
-            emotion=emotion
-        )
-        session.add(new_reading)
-        session.commit()
-        session.close()
-        
-        return jsonify({'status': 'success', 'emotion': emotion})
+    if emotion and class_id:
+        try:
+            # Store in database
+            session = Session()
+            new_reading = Reading(
+                class_id=class_id,
+                timestamp=datetime.now(),
+                emotion=emotion
+            )
+            session.add(new_reading)
+            session.commit()
+            session.close()
+            
+            return jsonify({'status': 'success', 'emotion': emotion})
+        except Exception as e:
+            print(f"Error saving emotion: {str(e)}")
+            return jsonify({'status': 'error', 'message': f'Database error: {str(e)}'})
     
-    return jsonify({'status': 'error', 'message': 'No emotion detected'})
+    return jsonify({'status': 'error', 'message': 'No emotion detected or invalid class'})
 
 @app.route('/get_readings/<class_id>', methods=['GET'])
 def get_readings(class_id):
-    session = Session()
-    readings = session.query(Reading).filter(Reading.class_id == class_id).all()
-    
     result = []
-    for reading in readings:
-        result.append({
-            'id': reading.id,
-            'timestamp': reading.timestamp.strftime('%H:%M:%S'),
-            'emotion': reading.emotion
-        })
+    try:
+        session = Session()
+        readings = session.query(Reading).filter(Reading.class_id == class_id).all()
+        
+        for reading in readings:
+            result.append({
+                'id': reading.id,
+                'timestamp': reading.timestamp.strftime('%H:%M:%S'),
+                'emotion': reading.emotion
+            })
+        
+        session.close()
+    except Exception as e:
+        print(f"Error getting readings: {str(e)}")
     
-    session.close()
     return jsonify(result)
 
 if __name__ == '__main__':
+    # Use SQLite file database
     app.run(debug=True)

@@ -22,10 +22,31 @@ Smart Classroom is a Flask-based web application that enables teachers to monito
    ```
    pip install -r requirements.txt
    ```
-3. Run the application:
+3. Initialize the database (only needed first time):
+   ```
+   python db_setup.py
+   ```
+4. Run the application:
    ```
    python app.py
    ```
+
+## Troubleshooting Database Issues
+
+If you encounter database access errors:
+
+1. Make sure the `instance` directory exists and has proper permissions:
+   ```
+   mkdir -p instance
+   chmod 777 instance
+   ```
+
+2. Run the database setup script:
+   ```
+   python db_setup.py
+   ```
+
+3. Check the console output for the database path and make sure it's accessible.
 
 ## Technologies Used
 
