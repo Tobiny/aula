@@ -7,12 +7,17 @@ import json
 from sqlalchemy import create_engine, Column, Integer, String, Float, ForeignKey, DateTime
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, relationship
+import os.path
 
 app = Flask(__name__)
 
+# Create instance directory if it doesn't exist
+os.makedirs('instance', exist_ok=True)
+
 # SQLite database setup
 Base = declarative_base()
-engine = create_engine('sqlite:///instance/smart_classroom.db')
+db_path = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'instance', 'smart_classroom.db')
+engine = create_engine(f'sqlite:///{db_path}')
 Session = sessionmaker(bind=engine)
 
 # Define database models
@@ -84,6 +89,22 @@ def home():
     # Get list of available cameras
     cameras = get_available_cameras()
     return render_template('index.html', cameras=cameras)
+
+# Helper function for emotion color display
+@app.context_processor
+def utility_processor():
+    def get_emotion_color(emotion):
+        emotion_colors = {
+            'happy': 'warning',
+            'sad': 'primary',
+            'angry': 'danger',
+            'fear': 'dark',
+            'surprise': 'success',
+            'neutral': 'secondary',
+            'disgust': 'info'
+        }
+        return emotion_colors.get(emotion.lower(), 'secondary')
+    return dict(get_emotion_color=get_emotion_color)
 
 @app.route('/class', methods=['GET'])
 def class_view():
