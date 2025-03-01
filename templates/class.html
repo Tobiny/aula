@@ -3,15 +3,48 @@
 {% block title %}Class Monitor{% endblock %}
 
 {% block additional_head %}
-<meta http-equiv="refresh" content="30">
+<meta http-equiv="refresh" content="300">
 {% endblock %}
 
 {% block content %}
+{% if class_info %}
 <div class="row mt-4">
     <div class="col-md-12">
-        <h1 class="page-header">Class Monitor</h1>
+        <div class="card mb-4">
+            <div class="card-header bg-primary text-white">
+                <div class="d-flex justify-content-between align-items-center">
+                    <h4 class="mb-0">
+                        <i class="fas fa-chalkboard me-2"></i>{{ class_info.subject }}
+                    </h4>
+                    <span class="badge bg-light text-dark">
+                        {{ format_datetime(class_info.date) }}
+                    </span>
+                </div>
+            </div>
+            <div class="card-body">
+                <div class="row align-items-center">
+                    <div class="col-md-6">
+                        <p class="text-muted mb-0">Teacher ID: {{ class_info.teacher_id }}</p>
+                    </div>
+                    <div class="col-md-6 text-end">
+                        <div class="btn-group">
+                            <a href="{{ url_for('analytics', class_id=class_info.id) }}" class="btn btn-outline-primary">
+                                <i class="fas fa-chart-line me-1"></i> Analytics
+                            </a>
+                            <a href="{{ url_for('attendance', class_id=class_info.id) }}" class="btn btn-outline-primary">
+                                <i class="fas fa-user-check me-1"></i> Attendance
+                            </a>
+                            <a href="{{ url_for('home') }}" class="btn btn-outline-secondary">
+                                <i class="fas fa-home me-1"></i> Home
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 </div>
+{% endif %}
 
 <div class="row">
     <div class="col-lg-8">
@@ -31,9 +64,26 @@
                     <button id="capture-button" class="btn btn-primary">
                         <i class="fas fa-camera me-2"></i>Capture Emotion
                     </button>
-                    <button id="auto-capture-toggle" class="btn btn-outline-secondary">
-                        <i class="fas fa-clock me-2"></i><span id="auto-capture-text">Enable Auto-Capture</span>
-                    </button>
+                    <div>
+                        <button id="auto-capture-toggle" class="btn btn-outline-secondary">
+                            <i class="fas fa-clock me-2"></i><span id="auto-capture-text">Enable Auto-Capture</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-lightbulb me-2"></i>Current Emotion Insights</h5>
+            </div>
+            <div class="card-body">
+                <div id="emotion-insight" class="alert alert-info">
+                    <h5 class="alert-heading">
+                        <i class="fas fa-info-circle me-2"></i>
+                        Capture an emotion to see insights
+                    </h5>
+                    <p>Use the "Capture Emotion" button to analyze the current emotional state of students.</p>
                 </div>
             </div>
         </div>
@@ -50,6 +100,18 @@
                 </div>
             </div>
         </div>
+        
+        <div class="card mb-4">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0"><i class="fas fa-user-graduate me-2"></i>Student Count</h5>
+                <span class="badge bg-primary" id="avg-students">0</span>
+            </div>
+            <div class="card-body">
+                <div class="chart-container" style="height: 150px;">
+                    <canvas id="studentsChart"></canvas>
+                </div>
+            </div>
+        </div>
     </div>
 </div>
 
@@ -58,9 +120,11 @@
         <div class="card">
             <div class="card-header d-flex justify-content-between align-items-center">
                 <h4 class="mb-0"><i class="fas fa-list-alt me-2"></i>Emotion Readings</h4>
-                <button id="refresh-button" class="btn btn-sm btn-outline-primary">
-                    <i class="fas fa-sync-alt me-1"></i>Refresh
-                </button>
+                <div>
+                    <button id="refresh-button" class="btn btn-sm btn-outline-primary">
+                        <i class="fas fa-sync-alt me-1"></i>Refresh
+                    </button>
+                </div>
             </div>
             <div class="card-body">
                 <div class="table-responsive">
@@ -68,25 +132,41 @@
                         <thead>
                             <tr>
                                 <th>#</th>
-                                <th>Timestamp</th>
+                                <th>Time</th>
                                 <th>Emotion</th>
+                                <th>Confidence</th>
+                                <th>Students</th>
+                                <th>Image</th>
                             </tr>
                         </thead>
                         <tbody>
                             {% for reading in readings %}
                             <tr class="emotion-{{ reading.emotion.lower() }}">
                                 <td>{{ reading.id }}</td>
-                                <td>{{ reading.timestamp }}</td>
+                                <td>{{ reading.timestamp.strftime('%H:%M:%S') }}</td>
                                 <td>
                                     <span class="badge bg-{{ get_emotion_color(reading.emotion) }}">
+                                        <i class="fas {{ get_emotion_icon(reading.emotion) }} me-1"></i>
                                         {{ reading.emotion }}
                                     </span>
+                                </td>
+                                <td>{{ "%.1f"|format(reading.confidence) }}%</td>
+                                <td>{{ reading.face_count }}</td>
+                                <td>
+                                    {% if reading.image_path %}
+                                    <a href="{{ url_for('static', filename=reading.image_path) }}" 
+                                       target="_blank" class="btn btn-sm btn-outline-secondary">
+                                        <i class="fas fa-image"></i>
+                                    </a>
+                                    {% else %}
+                                    <span class="text-muted">-</span>
+                                    {% endif %}
                                 </td>
                             </tr>
                             {% endfor %}
                             {% if not readings %}
                             <tr>
-                                <td colspan="3" class="text-center py-4">
+                                <td colspan="6" class="text-center py-4">
                                     No emotion readings yet. Click "Capture Emotion" to begin.
                                 </td>
                             </tr>
@@ -109,10 +189,12 @@
         const refreshButton = document.getElementById('refresh-button');
         const emotionIndicator = document.getElementById('emotion-indicator');
         const currentEmotion = document.getElementById('current-emotion');
+        const emotionInsight = document.getElementById('emotion-insight');
         
         // Initialize state
         let isAutoCaptureEnabled = false;
         let autoCaptureInterval = null;
+        let lastCapturedEmotion = null;
         
         // Camera related variables
         const cameraIndex = "{{ camera_index }}";
@@ -120,7 +202,7 @@
         // Set up the emotion chart
         const emotionChartCtx = document.getElementById('emotionChart').getContext('2d');
         const emotionChart = new Chart(emotionChartCtx, {
-            type: 'pie',
+            type: 'doughnut',
             data: {
                 labels: [],
                 datasets: [{
@@ -133,7 +215,8 @@
                         '#2ecc71', // surprise
                         '#bdc3c7', // neutral
                         '#9b59b6'  // disgust
-                    ]
+                    ],
+                    borderWidth: 0
                 }]
             },
             options: {
@@ -141,7 +224,45 @@
                 maintainAspectRatio: false,
                 plugins: {
                     legend: {
-                        position: 'bottom'
+                        position: 'right',
+                        labels: {
+                            boxWidth: 15,
+                            padding: 10
+                        }
+                    }
+                },
+                cutout: '70%'
+            }
+        });
+        
+        // Set up students chart
+        const studentsChartCtx = document.getElementById('studentsChart').getContext('2d');
+        const studentsChart = new Chart(studentsChartCtx, {
+            type: 'bar',
+            data: {
+                labels: [],
+                datasets: [{
+                    label: 'Students',
+                    data: [],
+                    backgroundColor: 'rgba(52, 152, 219, 0.5)',
+                    borderColor: 'rgba(52, 152, 219, 1)',
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            stepSize: 1
+                        }
+                    }
+                },
+                plugins: {
+                    legend: {
+                        display: false
                     }
                 }
             }
@@ -149,20 +270,29 @@
         
         // Function to capture emotion
         function captureEmotion() {
+            captureButton.disabled = true;
+            captureButton.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Capturing...';
+            
             fetch('/capture_emotion', {
                 method: 'POST'
             })
             .then(response => response.json())
             .then(data => {
                 if (data.status === 'success') {
-                    updateEmotionDisplay(data.emotion);
+                    updateEmotionDisplay(data.data);
                     refreshReadings();
                 } else {
                     console.error('Error capturing emotion:', data.message);
+                    currentEmotion.textContent = 'Error: ' + data.message;
                 }
             })
             .catch(error => {
                 console.error('Error:', error);
+                currentEmotion.textContent = 'Connection error';
+            })
+            .finally(() => {
+                captureButton.disabled = false;
+                captureButton.innerHTML = '<i class="fas fa-camera me-2"></i>Capture Emotion';
             });
         }
         
@@ -177,59 +307,134 @@
                 
                 // Update chart data
                 const emotionCounts = {};
-                
-                data.forEach((reading, index) => {
-                    // Add to table
-                    const row = document.createElement('tr');
-                    row.className = `emotion-${reading.emotion.toLowerCase()}`;
-                    
-                    row.innerHTML = `
-                        <td>${reading.id}</td>
-                        <td>${reading.timestamp}</td>
-                        <td>
-                            <span class="badge bg-${getEmotionColor(reading.emotion)}">
-                                ${reading.emotion}
-                            </span>
-                        </td>
-                    `;
-                    tableBody.appendChild(row);
-                    
-                    // Count for chart
-                    emotionCounts[reading.emotion] = (emotionCounts[reading.emotion] || 0) + 1;
-                });
+                const timestamps = [];
+                const faceCounts = [];
                 
                 if (data.length === 0) {
                     const emptyRow = document.createElement('tr');
                     emptyRow.innerHTML = `
-                        <td colspan="3" class="text-center py-4">
+                        <td colspan="6" class="text-center py-4">
                             No emotion readings yet. Click "Capture Emotion" to begin.
                         </td>
                     `;
                     tableBody.appendChild(emptyRow);
+                } else {
+                    data.forEach((reading, index) => {
+                        // Add to table
+                        const row = document.createElement('tr');
+                        row.className = `emotion-${reading.emotion.toLowerCase()}`;
+                        
+                        row.innerHTML = `
+                            <td>${reading.id}</td>
+                            <td>${reading.timestamp}</td>
+                            <td>
+                                <span class="badge bg-${getEmotionColor(reading.emotion)}">
+                                    <i class="fas ${getEmotionIcon(reading.emotion)} me-1"></i>
+                                    ${reading.emotion}
+                                </span>
+                            </td>
+                            <td>${reading.confidence ? reading.confidence.toFixed(1) : 0}%</td>
+                            <td>${reading.face_count}</td>
+                            <td>
+                                ${reading.image_path ? 
+                                    `<a href="/static/${reading.image_path}" target="_blank" class="btn btn-sm btn-outline-secondary">
+                                        <i class="fas fa-image"></i>
+                                    </a>` : 
+                                    '<span class="text-muted">-</span>'}
+                            </td>
+                        `;
+                        tableBody.appendChild(row);
+                        
+                        // Count for chart
+                        emotionCounts[reading.emotion] = (emotionCounts[reading.emotion] || 0) + 1;
+                        
+                        // Add to timeline data
+                        if (index < 8) { // Limit to 8 most recent for readability
+                            timestamps.unshift(reading.timestamp);
+                            faceCounts.unshift(reading.face_count);
+                        }
+                    });
+                    
+                    // Calculate average face count
+                    const faceCountSum = data.reduce((sum, reading) => sum + reading.face_count, 0);
+                    const avgFaceCount = (faceCountSum / data.length).toFixed(1);
+                    document.getElementById('avg-students').textContent = avgFaceCount;
                 }
                 
-                // Update chart
+                // Update emotion chart
                 updateEmotionChart(emotionCounts);
+                
+                // Update students chart
+                updateStudentsChart(timestamps, faceCounts);
             })
             .catch(error => {
                 console.error('Error:', error);
             });
         }
         
-        // Function to update chart
+        // Function to update emotion chart
         function updateEmotionChart(emotionCounts) {
             const emotions = Object.keys(emotionCounts);
             const counts = emotions.map(emotion => emotionCounts[emotion]);
             
-            emotionChart.data.labels = emotions;
+            emotionChart.data.labels = emotions.map(e => e.charAt(0).toUpperCase() + e.slice(1));
             emotionChart.data.datasets[0].data = counts;
             emotionChart.update();
         }
         
+        // Function to update students chart
+        function updateStudentsChart(timestamps, faceCounts) {
+            studentsChart.data.labels = timestamps;
+            studentsChart.data.datasets[0].data = faceCounts;
+            studentsChart.update();
+        }
+        
         // Function to update emotion display
-        function updateEmotionDisplay(emotion) {
-            currentEmotion.textContent = emotion;
+        function updateEmotionDisplay(data) {
+            const { emotion, confidence, image_path, face_count } = data;
+            currentEmotion.textContent = `${emotion} (${confidence.toFixed(1)}%)`;
             emotionIndicator.style.backgroundColor = getEmotionColorHex(emotion);
+            
+            // Update webcam feed if image is available
+            if (image_path) {
+                document.getElementById('webcam-feed').src = `/static/${image_path}?t=${new Date().getTime()}`;
+            }
+            
+            // Update insight panel
+            lastCapturedEmotion = emotion;
+            updateEmotionInsight(emotion, face_count);
+        }
+        
+        // Update the emotion insight panel
+        function updateEmotionInsight(emotion, faceCount) {
+            const emotionInfo = {
+                {% for emotion, info in emotion_info.items() %}
+                '{{ emotion }}': {
+                    description: '{{ info.description }}',
+                    educational_impact: '{{ info.educational_impact }}',
+                    teaching_tip: '{{ info.teaching_tip }}'
+                },
+                {% endfor %}
+            };
+            
+            const info = emotionInfo[emotion] || {
+                description: 'No information available for this emotion.',
+                educational_impact: '',
+                teaching_tip: ''
+            };
+            
+            emotionInsight.className = `alert alert-${getEmotionColor(emotion)} bg-opacity-10`;
+            emotionInsight.innerHTML = `
+                <h5 class="alert-heading">
+                    <i class="fas ${getEmotionIcon(emotion)} me-2"></i>
+                    ${emotion.charAt(0).toUpperCase() + emotion.slice(1)}
+                </h5>
+                <p>${info.description}</p>
+                <hr>
+                <p class="mb-1"><strong>Educational Impact:</strong> ${info.educational_impact}</p>
+                <p class="mb-0"><strong>Teaching Tip:</strong> ${info.teaching_tip}</p>
+                <p class="mt-2 text-muted"><small>Students detected: ${faceCount}</small></p>
+            `;
         }
         
         // Function to get emotion color for badges
@@ -245,6 +450,21 @@
             };
             
             return emotionColors[emotion.toLowerCase()] || 'secondary';
+        }
+        
+        // Function to get emotion icon
+        function getEmotionIcon(emotion) {
+            const emotionIcons = {
+                'happy': 'fa-smile',
+                'sad': 'fa-frown',
+                'angry': 'fa-angry',
+                'fear': 'fa-surprise',
+                'surprise': 'fa-surprise',
+                'neutral': 'fa-meh',
+                'disgust': 'fa-grimace'
+            };
+            
+            return emotionIcons[emotion.toLowerCase()] || 'fa-meh';
         }
         
         // Function to get emotion color for chart and indicator
@@ -289,11 +509,6 @@
         
         // Load initial data
         refreshReadings();
-        
-        // Set up webcam feed
-        const webcamFeed = document.getElementById('webcam-feed');
-        // This would typically be a video feed, but for simplicity we're just updating an image
-        // In a real app, you'd use WebRTC or a similar technology to access the camera stream
     });
 </script>
 {% endblock %}
