@@ -2,31 +2,58 @@
 
 An intelligent classroom system that uses emotion recognition to monitor student engagement during classes.
 
+![Smart Classroom](https://github.com/Tobiny/aula/assets/smart_classroom_banner.jpg)
+
 ## Overview
 
-Smart Classroom is a Flask-based web application that enables teachers to monitor student emotions in real-time using computer vision. The system captures emotions through webcams and stores the data for analysis.
+Smart Classroom is a Flask-based web application that enables teachers to monitor student emotions in real-time using computer vision. The system captures emotions through webcams and provides insights to help teachers adapt their teaching methods based on student engagement.
 
 ## Features
 
-- Start new class sessions with teacher ID and subject
-- Select which webcam to use for emotion detection
-- Real-time emotion detection using DeepFace
-- Automatic data collection with timestamps
-- Visual dashboard with emotion statistics
-- SQLite database for local storage without installation requirements
+- **Real-time Emotion Detection**: Analyze student facial expressions to determine emotional states during class
+- **Camera Selection**: Choose which camera to use for emotion detection
+- **Advanced Analytics**: Visualize emotion trends and patterns throughout the session
+- **Teaching Insights**: Receive actionable suggestions based on detected emotions
+- **Student Management**: Track student attendance and participation
+- **Emotion Timeline**: See how emotions change during the class period
+- **Image Capture**: Review captured images for each emotion reading
+- **Multi-face Detection**: Count how many students are detected in each capture
+- **Class Notes**: Add notes and summaries for each class session
+- **SQLite Database**: Local storage without installation requirements
+
+## Technology Stack
+
+- **Backend**: Python, Flask
+- **Frontend**: Bootstrap 5, Chart.js
+- **Database**: SQLite with SQLAlchemy
+- **Computer Vision**: OpenCV, DeepFace
+- **UI Components**: Font Awesome, Custom CSS
 
 ## Setup and Installation
 
-1. Clone the repository
-2. Install the requirements:
+1. Clone the repository:
+   ```
+   git clone https://github.com/yourusername/smart-classroom.git
+   cd smart-classroom
+   ```
+
+2. Set up a virtual environment (recommended):
+   ```
+   python -m venv venv
+   source venv/bin/activate   # On Windows: venv\Scripts\activate
+   ```
+
+3. Install the requirements:
    ```
    pip install -r requirements.txt
    ```
-3. Initialize the database (only needed first time):
+
+4. Initialize the database (only needed first time):
    ```
    python db_setup.py
    ```
-4. Run the application:
+
+5. Run the application:
    ```
    python app.py
    ```
@@ -48,27 +75,41 @@ If you encounter database access errors:
 
 3. Check the console output for the database path and make sure it's accessible.
 
-## Technologies Used
+## Usage Guide
 
-- **Flask**: Web framework
-- **SQLAlchemy**: Database ORM
-- **DeepFace**: Emotion recognition
-- **OpenCV**: Camera interface
-- **Chart.js**: Data visualization
-- **Bootstrap 5**: Frontend UI
+1. **Starting a Class**: 
+   - Enter your teacher ID and subject name
+   - Select your preferred camera
+   - Click "Start Class"
 
-## Database Structure
+2. **Capturing Emotions**:
+   - Click "Capture Emotion" to take a snapshot
+   - Enable "Auto-Capture" for periodic readings
+   - View real-time emotional insights
 
-The application uses SQLite with two main tables:
-- **Classes**: Stores information about class sessions
-- **Readings**: Stores emotion detection readings with timestamps
+3. **Analytics Dashboard**:
+   - View emotion distribution charts
+   - See emotion timeline throughout the class
+   - Get teaching suggestions based on predominant emotions
 
-## Usage
+4. **Student Management**:
+   - Add students to the system
+   - Track attendance for each class
+   - View attendance statistics
 
-1. Navigate to the homepage
-2. Enter your teacher ID and subject
-3. Select the webcam you want to use
-4. Start the class
-5. Use "Capture Emotion" button to take a snapshot and analyze emotions
-6. Toggle "Auto-Capture" for periodic readings
-7. View real-time statistics in the dashboard
+## Key Directories and Files
+
+- `/app.py` - Main application file
+- `/emotions.py` - Emotion detection module
+- `/db_setup.py` - Database initialization
+- `/static/` - CSS and captured images
+- `/templates/` - HTML templates
+- `/instance/` - SQLite database
+
+## Contributing
+
+Contributions are welcome! Please feel free to submit a Pull Request.
+
+## License
+
+This project is licensed under the MIT License - see the LICENSE file for details.
